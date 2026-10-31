@@ -24,7 +24,7 @@ svg{width:100%;height:auto;border:1px solid var(--bd);border-radius:8px}.hide{di
 <script>
 const P={1:[232,405],2:[457,395],3:[665,393],4:[872,390],5:[344,532],6:[578,518],7:[773,516],8:[220,672],9:[456,648],10:[697,641],11:[906,636],12:[343,803],13:[578,779],14:[805,772],15:[211,948],16:[458,930],17:[706,908],18:[930,882],19:[327,1079],20:[582,1063],21:[826,1041],22:[204,1222],23:[427,1206],24:[684,1180],25:[936,1160]};
 document.getElementById('adm').onclick=e=>{e.preventDefault();const k=prompt('Password panitia');if(k)location.href='/api/admin?key='+encodeURIComponent(k)};
-const VIP=[1,2,3,4,5,6,7,8,9,10,11],$=id=>document.getElementById(id);
+const VV=[1,2,3,4,7],VIP=[5,6,8,9,10,11],$=id=>document.getElementById(id);
 function rows(){const n=Math.min(100,Math.max(1,+$('ns').value||1)),old=[...$('stu').querySelectorAll('input')].map(i=>i.value);$('stu').innerHTML='';
  for(let i=0;i<n;i++){const d=document.createElement('div');d.className='row';for(let j=0;j<2;j++){const x=document.createElement('input');x.placeholder=j?'No. HP':'Nama siswa '+(i+1);if(j)x.type='tel';x.value=old[i*2+j]||'';d.appendChild(x)}$('stu').appendChild(d)}}
 $('ns').oninput=rows;rows();
@@ -32,13 +32,13 @@ function show(v){$('vR').classList.toggle('hide',v!=='R');$('vC').classList.togg
 $('tR').onclick=()=>show('R');$('tC').onclick=()=>show('C');
 function draw(pl){const m={};[...pl.guru,...pl.siswa].forEach(x=>m[x.t]=(m[x.t]||0)+x.n);
  let s='<svg viewBox="0 0 1080 1530"><rect x="300" y="100" width="460" height="140" fill="#e4e4e4" stroke="#999"/><text x="530" y="170" text-anchor="middle" font-size="42" fill="#333">PANGGUNG</text><text x="860" y="205" font-size="24" fill="#666">PINTU MASUK MAKANAN</text><text x="95" y="860" font-size="26" fill="#666" transform="rotate(90 95 860)">PINTU MASUK UNDANGAN</text><text x="440" y="1380" font-size="24" fill="#666">PINTU KELUAR MAKANAN</text>';
- for(const t in P){const [x,y]=P[t],k=m[t],c=VIP.includes(+t)?'#d4a62a':'#1f5c4d';
+ for(const t in P){const [x,y]=P[t],k=m[t],c=VV.includes(+t)?'#2a6fdb':VIP.includes(+t)?'#d4a62a':'#1f5c4d';
   s+=`<circle cx="${x}" cy="${y}" r="${k?58:42}" fill="${c}" ${k?'stroke="#e2342d" stroke-width="12"':''}/><text x="${x}" y="${y+12}" text-anchor="middle" font-size="${k?44:34}" fill="#fff" font-weight="700">${t}</text>`;
   if(k)s+=`<text x="${x}" y="${y+92}" text-anchor="middle" font-size="28" fill="#e2342d" font-weight="700">${k} org</text>`}
  return s+'</svg>'}
 function res(d,dup){const L=a=>a.map(x=>x.t).join(', ')||'-',r=$('res');r.innerHTML='';const c=document.createElement('div');c.className='c';
- const ok=document.createElement('div');ok.className='ok';ok.textContent=(dup?'Data ditemukan. ':'Pendaftaran berhasil! ')+d.school+' — '+d.guru+' guru, '+d.siswa+' siswa. Meja guru (oranye): '+L(d.plan.guru)+'. Meja siswa (hijau): '+L(d.plan.siswa)+'.';
- const w=document.createElement('div');w.innerHTML=draw(d.plan);const n=document.createElement('p');n.textContent='Lingkaran bergaris merah = meja rombongan Anda. Tunjukkan layar ini ke panitia.';
+ const ok=document.createElement('div');ok.className='ok';ok.textContent=(dup?'Data ditemukan. ':'Pendaftaran berhasil! ')+d.school+' — '+d.guru+' guru, '+d.siswa+' siswa. Meja guru (kuning): '+L(d.plan.guru)+'. Meja siswa (hijau): '+L(d.plan.siswa)+'.';
+ const w=document.createElement('div');w.innerHTML=draw(d.plan);const n=document.createElement('p');n.textContent='Lingkaran bergaris merah = meja rombongan Anda (biru = VVIP, kuning = VIP/guru, hijau = siswa). Tunjukkan layar ini ke panitia.';
  c.append(ok,w,n);r.appendChild(c);try{localStorage.setItem('mine',d.school)}catch(e){}r.scrollIntoView()}
 $('go').onclick=async()=>{$('er').textContent='';const i=[...$('stu').querySelectorAll('input')],stu=[];for(let k=0;k<i.length;k+=2)stu.push({n:i[k].value,p:i[k+1].value});
  $('go').disabled=true;try{const r=await fetch('/api/reg',{method:'POST',body:JSON.stringify({school:$('sch').value,siswa:+$('ns').value,guru:+$('ng').value,gp:$('gp').value,stu})}),j=await r.json();j.ok?res(j.data,j.dup):$('er').textContent=j.err}catch(e){$('er').textContent='Koneksi gagal, coba lagi.'}$('go').disabled=false};
