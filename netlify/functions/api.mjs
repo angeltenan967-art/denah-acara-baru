@@ -16,7 +16,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 function usage(st) {
   const u = {};
   for (const r of st.regs) for (const x of [...r.plan.guru, ...r.plan.siswa]) u[x.t] = (u[x.t] || 0) + x.n;
-  for (const g of st.guests) if (g.meja) u[g.meja] = (u[g.meja] || 0) + 1;
+  for (const g of st.guests) { if (g.plan) for (const x of g.plan) u[x.t] = (u[x.t] || 0) + x.n; else if (g.meja) u[g.meja] = (u[g.meja] || 0) + 1; }
   return u;
 }
 function plan(n, pool, u) {
@@ -29,6 +29,7 @@ function plan(n, pool, u) {
   }
   return null;
 }
+const pubG = (g) => ({ tamu: 1, school: g.nama + (g.instansi ? " (" + g.instansi + ")" : ""), n: g.n, plan: { guru: [], siswa: [], vvip: g.plan } });
 const pub = (r) => ({ school: r.school, siswa: r.siswa, guru: r.guru, plan: r.plan });
 
 async function load() {
@@ -61,7 +62,7 @@ function client(KEY) {
   function section(D, title, kat, pool, extra) {
     const box = el("div"); box.style.cssText = "border:1px solid #ccc;border-radius:8px;padding:10px;margin:14px 0";
     const rows = D.guests.filter((g) => g.kat === kat);
-    const all = [...rows.map((g) => ({ k: "guest", id: g.id, nama: g.nama, ins: g.instansi, meja: g.meja, h: g.hadir })), ...extra];
+    const all = [...rows.map((g) => ({ k: "guest", id: g.id, nama: g.nama + (g.n > 1 ? " (" + g.n + " orang)" : ""), ins: g.instansi, meja: g.meja, h: g.hadir })), ...extra];
     box.appendChild(el("h3", title + " — hadir " + all.filter((x) => x.h).length + " dari " + all.length));
     const t = el("table"); t.border = 1; t.cellPadding = 6; t.style.borderCollapse = "collapse"; t.style.width = "100%";
     const hr = el("tr"); ["Hadir", "Nama", "Instansi", "Meja", ""].forEach((h) => hr.appendChild(el("th", h))); t.appendChild(hr);
@@ -107,8 +108,11 @@ export default async (req) => {
 
   if (path === "find") {
     const { st } = await load();
-    const r = st.regs.find((x) => x.nm === norm(url.searchParams.get("q")));
-    return r ? J({ ok: 1, data: pub(r) }) : J({ err: "Sekolah belum terdaftar." }, 404);
+    const q = norm(url.searchParams.get("q"));
+    const r = st.regs.find((x) => x.nm === q);
+    if (r) return J({ ok: 1, data: pub(r) });
+    const g = st.guests.find((x) => x.self && (norm(x.nama) === q || (x.instansi && norm(x.instansi) === q)));
+    return g ? J({ ok: 1, data: pubG(g) }) : J({ err: "Belum terdaftar." }, 404);
   }
 
   if (path === "reg" && req.method === "POST") {
@@ -134,6 +138,24 @@ export default async (req) => {
       const rec = { nm: norm(school), school, siswa: ns, guru: ng, gp, stu, plan: { guru: g, siswa: s }, hadirGuru: false, ts: Date.now() };
       st.regs.push(rec);
       return { ok: 1, data: pub(rec) };
+    });
+    return res.err ? J({ err: res.err }, res.code || 500) : J({ ok: 1, dup: res.dup, data: res.data });
+  }
+
+  if (path === "tamu" && req.method === "POST") {
+    let d; try { d = await req.json(); } catch { return J({ err: "Data tidak valid." }, 400); }
+    const nama = String(d.nama || "").trim().slice(0, 80), instansi = String(d.instansi || "").trim().slice(0, 80), n = +d.n, hp = String(d.hp || "").trim();
+    if (!nama || !(n >= 1 && n <= 10)) return J({ err: "Isi nama dan jumlah orang (1-10)." }, 400);
+    if (hp && !/^[0-9+\-\s]{8,16}$/.test(hp)) return J({ err: "No. HP tidak valid." }, 400);
+    const key = norm(nama) + "|" + norm(instansi);
+    const res = await mutate((st) => {
+      const ex = st.guests.find((g) => g.self && g.key === key);
+      if (ex) return { skip: 1, ok: 1, dup: 1, data: pubG(ex) };
+      const pl = plan(n, VVIP, usage(st));
+      if (!pl) return { err: "Kursi meja tamu undangan tidak cukup. Hubungi panitia.", code: 409 };
+      const g = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nama, instansi, kat: "VVIP", meja: pl.map((x) => x.t).join("/"), n, plan: pl, hp, hadir: false, self: 1, key };
+      st.guests.push(g);
+      return { ok: 1, data: pubG(g) };
     });
     return res.err ? J({ err: res.err }, res.code || 500) : J({ ok: 1, dup: res.dup, data: res.data });
   }
