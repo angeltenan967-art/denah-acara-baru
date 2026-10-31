@@ -14,11 +14,11 @@ svg{width:100%;height:auto;border:1px solid var(--bd);border-radius:8px}.hide{di
 </style></head><body><div class="w">
 <h1>Registrasi Rombongan</h1><p style="color:#5d716b;margin:0 0 12px">Isi data rombongan, lalu lihat denah &amp; nomor meja Anda.</p>
 <div class="tabs"><button id="tR">Daftar</button><button class="o" id="tC">Cek Ulang</button></div><br>
-<div id="vR" class="c"><label>Asal sekolah</label><input id="sch" maxlength="100">
+<div id="vR" class="c"><div class="r"><button id="mS" type="button" style="margin-top:0">Sekolah</button><button id="mT" type="button" class="o" style="margin-top:0">Tamu Undangan</button></div><div id="fS"><label>Asal sekolah</label><input id="sch" maxlength="100">
 <div class="r"><div><label>Jumlah siswa</label><input id="ns" type="number" min="1" max="100" value="1"></div>
 <div><label>Jumlah guru</label><input id="ng" type="number" min="0" max="25" value="1"></div></div>
 <label>HP guru pendamping</label><input id="gp" type="tel"><label>Data siswa (nama &amp; no. HP)</label><div id="stu"></div>
-<button id="go">Kirim &amp; Lihat Denah</button><div class="err" id="er"></div></div>
+<button id="go">Kirim &amp; Lihat Denah</button><div class="err" id="er"></div></div><div id="fT" class="hide"><label>Nama</label><input id="tn" maxlength="80"><label>Instansi / jabatan</label><input id="ti" maxlength="80"><div class="r"><div><label>Jumlah orang</label><input id="tj" type="number" min="1" max="10" value="1"></div><div><label>No. HP</label><input id="tp" type="tel"></div></div><button id="gt">Kirim &amp; Lihat Denah</button><div class="err" id="et"></div></div></div>
 <div id="vC" class="c hide"><label>Nama sekolah</label><input id="q"><button id="fq">Cari</button><div class="err" id="eq"></div></div>
 <div id="res"></div><p style="text-align:center;margin-top:24px"><a href="#" id="adm" style="color:#5d716b;font-size:.85rem">Panitia</a></p></div>
 <script>
@@ -30,18 +30,21 @@ function rows(){const n=Math.min(100,Math.max(1,+$('ns').value||1)),old=[...$('s
 $('ns').oninput=rows;rows();
 function show(v){$('vR').classList.toggle('hide',v!=='R');$('vC').classList.toggle('hide',v!=='C');$('tR').className=v==='R'?'':'o';$('tC').className=v==='C'?'':'o';$('res').innerHTML=''}
 $('tR').onclick=()=>show('R');$('tC').onclick=()=>show('C');
-function draw(pl){const m={};[...pl.guru,...pl.siswa].forEach(x=>m[x.t]=(m[x.t]||0)+x.n);
+function draw(pl){const m={};[...pl.guru,...pl.siswa,...(pl.vvip||[])].forEach(x=>m[x.t]=(m[x.t]||0)+x.n);
  let s='<svg viewBox="0 0 1080 1530"><rect x="300" y="100" width="460" height="140" fill="#e4e4e4" stroke="#999"/><text x="530" y="170" text-anchor="middle" font-size="42" fill="#333">PANGGUNG</text><text x="860" y="205" font-size="24" fill="#666">PINTU MASUK MAKANAN</text><text x="95" y="860" font-size="26" fill="#666" transform="rotate(90 95 860)">PINTU MASUK UNDANGAN</text><text x="440" y="1380" font-size="24" fill="#666">PINTU KELUAR MAKANAN</text>';
  for(const t in P){const [x,y]=P[t],k=m[t],c=VV.includes(+t)?'#2a6fdb':VIP.includes(+t)?'#d4a62a':'#1f5c4d';
   s+=`<circle cx="${x}" cy="${y}" r="${k?58:42}" fill="${c}" ${k?'stroke="#e2342d" stroke-width="12"':''}/><text x="${x}" y="${y+12}" text-anchor="middle" font-size="${k?44:34}" fill="#fff" font-weight="700">${t}</text>`;
   if(k)s+=`<text x="${x}" y="${y+92}" text-anchor="middle" font-size="28" fill="#e2342d" font-weight="700">${k} org</text>`}
  return s+'</svg>'}
 function res(d,dup){const L=a=>a.map(x=>x.t).join(', ')||'-',r=$('res');r.innerHTML='';const c=document.createElement('div');c.className='c';
- const ok=document.createElement('div');ok.className='ok';ok.textContent=(dup?'Data ditemukan. ':'Pendaftaran berhasil! ')+d.school+' — '+d.guru+' guru, '+d.siswa+' siswa. Meja guru (kuning): '+L(d.plan.guru)+'. Meja siswa (hijau): '+L(d.plan.siswa)+'.';
+ const ok=document.createElement('div');ok.className='ok';ok.textContent=(dup?'Data ditemukan. ':'Pendaftaran berhasil! ')+(d.tamu?d.school+' — '+d.n+' orang. Meja VVIP (biru): '+L(d.plan.vvip)+'.':d.school+' — '+d.guru+' guru, '+d.siswa+' siswa. Meja guru (kuning): '+L(d.plan.guru)+'. Meja siswa (hijau): '+L(d.plan.siswa)+'.');
  const w=document.createElement('div');w.innerHTML=draw(d.plan);const n=document.createElement('p');n.textContent='Lingkaran bergaris merah = meja rombongan Anda (biru = VVIP, kuning = VIP/guru, hijau = siswa). Tunjukkan layar ini ke panitia.';
  c.append(ok,w,n);r.appendChild(c);try{localStorage.setItem('mine',d.school)}catch(e){}r.scrollIntoView()}
 $('go').onclick=async()=>{$('er').textContent='';const i=[...$('stu').querySelectorAll('input')],stu=[];for(let k=0;k<i.length;k+=2)stu.push({n:i[k].value,p:i[k+1].value});
  $('go').disabled=true;try{const r=await fetch('/api/reg',{method:'POST',body:JSON.stringify({school:$('sch').value,siswa:+$('ns').value,guru:+$('ng').value,gp:$('gp').value,stu})}),j=await r.json();j.ok?res(j.data,j.dup):$('er').textContent=j.err}catch(e){$('er').textContent='Koneksi gagal, coba lagi.'}$('go').disabled=false};
+function mode(m){$('fS').classList.toggle('hide',m!=='S');$('fT').classList.toggle('hide',m!=='T');$('mS').className=m==='S'?'':'o';$('mT').className=m==='T'?'':'o'}
+$('mS').onclick=()=>mode('S');$('mT').onclick=()=>mode('T');
+$('gt').onclick=async()=>{$('et').textContent='';$('gt').disabled=true;try{const r=await fetch('/api/tamu',{method:'POST',body:JSON.stringify({nama:$('tn').value,instansi:$('ti').value,n:+$('tj').value,hp:$('tp').value})}),j=await r.json();j.ok?res(j.data,j.dup):$('et').textContent=j.err}catch(e){$('et').textContent='Koneksi gagal, coba lagi.'}$('gt').disabled=false};
 $('fq').onclick=async()=>{$('eq').textContent='';try{const r=await fetch('/api/find?q='+encodeURIComponent($('q').value)),j=await r.json();j.ok?res(j.data,true):$('eq').textContent=j.err}catch(e){$('eq').textContent='Koneksi gagal.'}};
 try{const m=localStorage.getItem('mine');if(m)fetch('/api/find?q='+encodeURIComponent(m)).then(r=>r.json()).then(j=>j.ok&&res(j.data,true))}catch(e){}
 </script></body></html>
